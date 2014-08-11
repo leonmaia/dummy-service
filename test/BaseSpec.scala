@@ -5,10 +5,10 @@ import org.scalatest.mock.MockitoSugar
 import scala.concurrent.duration._
 
 trait BaseSpec extends FunSpecLike
-with Matchers
-with MockitoSugar
-with BeforeAndAfter
-with BeforeAndAfterAll {
+               with Matchers
+               with MockitoSugar
+               with BeforeAndAfter
+               with BeforeAndAfterAll {
 
   def waitVerification(interval: Duration = 15.milliseconds,
                        atMost: Duration = 10.seconds)(f: => Unit) {
