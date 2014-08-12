@@ -1,15 +1,14 @@
 package controllers
 
-import java.util.UUID
-
 import akka.util.Timeout
+import com.fasterxml.jackson.annotation.ObjectIdGenerators.UUIDGenerator
 import model._
 import play.api.data.validation.ValidationError
 import play.api.i18n.{Lang, Messages}
 import play.api.libs.json._
 import play.api.libs.json.Json._
 import play.api.mvc._
-import play.api.{Configuration, Play}
+import play.api._
 import repositories._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -23,23 +22,23 @@ trait PatientController {
   def repository(): PatientRepository
 
   def index = Action {
-      Ok("")
+    Ok("")
 
   }
 
   def create() = Action.async(parse.json) { request =>
     request.body.validate[Patient]
-      .fold(
-        errors => Future {
-          BadRequest(validationErrors(errors))
-        },
-        patient => repository.insert(patient)
-                             .map({ patientId =>
-                               patient.copy(Some(patientId))
-                               Created(toJson(patient))
-                             }
-        )
-      )
+                .fold(
+    errors => Future {BadRequest(validationErrors(errors))},
+    patient => repository().insert(patient)
+                           .map { patientId =>
+                             val createdPatient = patient.copy(id = Some(patientId))
+                             Created(toJson(createdPatient))
+                           }
+                           .recover {
+                             case error: Throwable => InternalServerError(obj("error" -> error.getMessage))
+                           }
+    )
   }
 
   def validationErrors(errors: Seq[(JsPath, Seq[ValidationError])]): JsObject = {
@@ -64,6 +63,6 @@ trait PatientController {
 }
 
 object PatientController extends Controller with PatientController {
-  override def repository(): PatientRepository = ???
+  override def repository(): PatientRepository = new SeqPatientRepository(Seq[Patient]: _*, new RandomUUIDGenerator)
 }
 
