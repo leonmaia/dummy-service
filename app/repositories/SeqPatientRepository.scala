@@ -8,8 +8,8 @@ import repositories._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-class SeqPatientRepository(var patients: Seq[Patient], idGenerator: UUIDGenerator) extends PatientRepository {
+class SeqPatientRepository(var patients: Seq[Patient]) extends PatientRepository {
 
-  override def insert(patient: Patient): Future[UUID] = Future(idGenerator.generate())
+
 
 }

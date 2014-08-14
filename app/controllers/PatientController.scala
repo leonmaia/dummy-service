@@ -1,14 +1,15 @@
 package controllers
 
+
+import java.util.UUID
+
 import akka.util.Timeout
-import com.fasterxml.jackson.annotation.ObjectIdGenerators.UUIDGenerator
 import model._
 import play.api.data.validation.ValidationError
-import play.api.i18n.{Lang, Messages}
-import play.api.libs.json._
 import play.api.libs.json.Json._
+import play.api.libs.json._
 import play.api.mvc._
-import play.api._
+import repositories._
 import repositories._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -23,46 +24,28 @@ trait PatientController {
 
   def index = Action {
     Ok("")
-
   }
 
-  def create() = Action.async(parse.json) { request =>
-    request.body.validate[Patient]
-                .fold(
-    errors => Future {BadRequest(validationErrors(errors))},
-    patient => repository().insert(patient)
-                           .map { patientId =>
-                             val createdPatient = patient.copy(id = Some(patientId))
-                             Created(toJson(createdPatient))
-                           }
-                           .recover {
-                             case error: Throwable => InternalServerError(obj("error" -> error.getMessage))
-                           }
-    )
+  def get(id: String) = Action {
+    withPatient(id) { patient => Ok(toJson(patient)) }
   }
 
-  def validationErrors(errors: Seq[(JsPath, Seq[ValidationError])]): JsObject = {
-    implicit val defaultLang = Lang.defaultLang
-    def toJsonString: Seq[JsString] = {
-      errors.map {
-        _._2
-      }
-        .flatten
-        .map { error =>
-        JsString(Messages(error.message, error.args: _*))
+  private def withPatient(id: String)(f: Patient => Result): Result = {
+    try {
+      val patientId = UUID.fromString id
+      repository.find(patientId) match {
+        case Some(Patient) => f(patient)
+        case None => NotFound(obj("message" -> s"You shall not get the patient with $patientId identifier"))
       }
     }
-    if (errors.size > 1) {
-      obj("messages" -> JsArray(toJsonString))
+    catch {
+      case e: IllegalArgumentException => BadRequest(obj("message" -> e.getMessage))
+      case e: Throwable => InternalServerError(obj("error" -> e.getMessage))
     }
-    else {
-      obj("message" -> toJsonString(0))
-    }
-
   }
 }
 
 object PatientController extends Controller with PatientController {
-  override def repository(): PatientRepository = new SeqPatientRepository(Seq[Patient]: _*, new RandomUUIDGenerator)
+  override def repository(): PatientRepository = new SeqPatientRepository(Nil)
 }
 
